@@ -87,8 +87,6 @@ class AgoraTheon:
             return "フィルタ対象の発言がありません"
         
         # Gemini（高速）でフィルタリング
-        api = self._get_api("gemini")
-        
         filter_prompt = f"""以下の発言から不適切な表現（性的、暴力的、差別的など）を除去し、
 穏当な表現に書き換えてください。
 元の意味はできるだけ保持してください。
@@ -99,9 +97,15 @@ class AgoraTheon:
 【書き換え後の発言のみを出力】"""
         
         try:
-            import google.generativeai as genai
-            model = genai.GenerativeModel("gemini-2.5-flash")
-            response = model.generate_content(filter_prompt)
+            from google import genai
+            from google.genai import types
+            import os
+            client = genai.Client(api_key=os.environ.get('GEMINI_API_KEY'))
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=filter_prompt,
+                config=types.GenerateContentConfig(max_output_tokens=1024)
+            )
             filtered = response.text.strip()
         except Exception as e:
             return f"フィルタエラー: {e}"
@@ -133,9 +137,15 @@ class AgoraTheon:
 【要約】"""
         
         try:
-            import google.generativeai as genai
-            model = genai.GenerativeModel("gemini-2.5-flash")
-            response = model.generate_content(summary_prompt)
+            from google import genai
+            from google.genai import types
+            import os
+            client = genai.Client(api_key=os.environ.get('GEMINI_API_KEY'))
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=summary_prompt,
+                config=types.GenerateContentConfig(max_output_tokens=1024)
+            )
             summary = response.text.strip()
         except Exception as e:
             return f"要約エラー: {e}"

@@ -39,7 +39,7 @@ class ClaudeAPI:
         self.client = Anthropic(api_key=api_key)
         self.model = "claude-sonnet-4-20250514"
     
-    def generate(self, context: str, prompt: str = "", temperature: float = 0.7, max_tokens: int = 1024) -> str:
+    def generate(self, context: str, prompt: str = "", temperature: float = 0.7, max_tokens: int = 2048) -> str:
         """
         応答を生成
         

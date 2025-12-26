@@ -1,14 +1,17 @@
 """
 Gemini API Wrapper for AgoraTheon
 ❇️ 実用・高速担当
+
+使用SDK: google-genai (新SDK)
 """
 
 import os
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 
 class GeminiAPI:
-    """Gemini API (Google)"""
+    """Gemini API (Google) - 新SDK版"""
     
     ICON = "❇️"
     NAME = "gemini"
@@ -36,10 +39,10 @@ class GeminiAPI:
         api_key = os.environ.get('GEMINI_API_KEY')
         if not api_key:
             raise ValueError("GEMINI_API_KEY not set")
-        genai.configure(api_key=api_key)
+        self.client = genai.Client(api_key=api_key)
         self.model_name = "gemini-2.5-flash"
     
-    def generate(self, context: str, prompt: str = "", temperature: float = 0.7, max_tokens: int = 1024) -> str:
+    def generate(self, context: str, prompt: str = "", temperature: float = 0.7, max_tokens: int = 2048) -> str:
         """
         応答を生成
         
@@ -55,14 +58,11 @@ class GeminiAPI:
         user_message = self._build_message(context, prompt)
         
         try:
-            model = genai.GenerativeModel(
-                model_name=self.model_name,
-                system_instruction=self.SYSTEM_PROMPT
-            )
-            
-            response = model.generate_content(
-                user_message,
-                generation_config=genai.types.GenerationConfig(
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=user_message,
+                config=types.GenerateContentConfig(
+                    system_instruction=self.SYSTEM_PROMPT,
                     temperature=temperature,
                     max_output_tokens=max_tokens
                 )
@@ -88,10 +88,10 @@ class GeminiAPI:
     def health_check(self) -> dict:
         """ヘルスチェック"""
         try:
-            model = genai.GenerativeModel(self.model_name)
-            response = model.generate_content(
-                "Reply with just 'OK'",
-                generation_config=genai.types.GenerationConfig(max_output_tokens=10)
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents="Reply with just 'OK'",
+                config=types.GenerateContentConfig(max_output_tokens=10)
             )
             return {"status": "healthy", "model": self.model_name}
         except Exception as e:

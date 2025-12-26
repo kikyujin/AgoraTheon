@@ -18,7 +18,7 @@ class GrokAPI:
     SYSTEM_PROMPT = """あなたはAI討論会の参加者「Grok」です。
 
 ## 役割
-- 叡智とちゃぶ台返しを担当
+- イーロンの引用とちゃぶ台返しを担当
 - 既存の議論をひっくり返す斬新な視点を提供
 - タブーや常識を恐れない発言
 
@@ -31,7 +31,7 @@ class GrokAPI:
 - 率直で遠慮がない
 - 知的だがカジュアル
 - 敬語は使わない（討論参加者として対等）
-- イーロン・マスクの話は控えめに"""
+- イーロン・マスクの引用はポイントを押さえて使用"""
     
     def __init__(self):
         api_key = os.environ.get('GROK_API_KEY')
@@ -43,7 +43,7 @@ class GrokAPI:
         )
         self.model = "grok-3-fast"
     
-    def generate(self, context: str, prompt: str = "", temperature: float = 0.8, max_tokens: int = 1024) -> str:
+    def generate(self, context: str, prompt: str = "", temperature: float = 0.8, max_tokens: int = 2048) -> str:
         """
         応答を生成
         

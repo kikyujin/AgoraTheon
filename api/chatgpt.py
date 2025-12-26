@@ -39,7 +39,7 @@ class ChatGPTAPI:
         self.client = OpenAI(api_key=api_key)
         self.model = "gpt-4o"
     
-    def generate(self, context: str, prompt: str = "", temperature: float = 0.7, max_tokens: int = 1024) -> str:
+    def generate(self, context: str, prompt: str = "", temperature: float = 0.7, max_tokens: int = 2048) -> str:
         """
         応答を生成
         
