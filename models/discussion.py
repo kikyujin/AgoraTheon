@@ -157,7 +157,14 @@ class Discussion:
     @classmethod
     def from_markdown(cls, md_str: str, title: str = "Untitled") -> "Discussion":
         """Markdown形式から復元（簡易パーサー）"""
-        from ..api import ICONS
+        # アイコンマッピング（api/__init__.pyと同期）
+        ICONS = {
+            "claude": "✴️",
+            "gemini": "❇️",
+            "chatgpt": "♻️",
+            "grok": "♨️",
+            "sumire": "💠",
+        }
         
         discussion = cls(title=title)
         

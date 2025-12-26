@@ -104,7 +104,7 @@ class AgoraTheon:
             response = client.models.generate_content(
                 model="gemini-2.5-flash",
                 contents=filter_prompt,
-                config=types.GenerateContentConfig(max_output_tokens=1024)
+                config=types.GenerateContentConfig(max_output_tokens=2048)
             )
             filtered = response.text.strip()
         except Exception as e:
@@ -144,7 +144,7 @@ class AgoraTheon:
             response = client.models.generate_content(
                 model="gemini-2.5-flash",
                 contents=summary_prompt,
-                config=types.GenerateContentConfig(max_output_tokens=1024)
+                config=types.GenerateContentConfig(max_output_tokens=2048)
             )
             summary = response.text.strip()
         except Exception as e:
