@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 AgoraTheon - AI討論会システム
-v1.0: 直接指定コマンド版
+v1.1: スミレん司会搭載版
 """
 
 import sys
@@ -14,20 +14,31 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from api import API_MAP, ICONS
 from models import Discussion
+from personas import SumireHost
 
 
 class AgoraTheon:
     """AI討論会メインクラス"""
     
-    def __init__(self, discussion_file: str, data_files: list = None):
+    def __init__(self, discussion_file: str, data_files: list = None, auto_mode: bool = True):
         self.discussion_file = discussion_file
         self.discussion = self._load_or_create(discussion_file)
+        self.auto_mode = auto_mode  # スミレん司会モード
         
         if data_files:
             self.discussion.data_files.extend(data_files)
         
         # APIインスタンス（遅延初期化）
         self._apis = {}
+        
+        # スミレん司会（v1.1）
+        self._sumire = None
+        if self.auto_mode:
+            try:
+                self._sumire = SumireHost()
+            except Exception as e:
+                print(f"⚠️ スミレん司会の初期化に失敗: {e}")
+                self.auto_mode = False
     
     def _load_or_create(self, filepath: str) -> Discussion:
         """討論ファイルを読み込むか新規作成（JSONのみ対応）"""
@@ -210,9 +221,6 @@ class AgoraTheon:
         """
         line = line.strip()
         
-        if not line:
-            return "", False
-        
         # /コマンド処理
         if line.startswith('/'):
             parts = line[1:].split(maxsplit=1)
@@ -241,21 +249,75 @@ class AgoraTheon:
                 return "討論を終了します。お疲れ様でした！", True
             elif cmd == "help":
                 return self._help(), False
+            elif cmd == "auto":
+                return self.cmd_toggle_auto(), False
             else:
                 return f"不明なコマンド: /{cmd}\n/help でヘルプを表示", False
         
-        # コマンドなしの入力（v1.0では無視）
-        return "コマンドを入力してください（/help でヘルプ表示）", False
+        # コマンドなしの入力 → スミレん司会モード（v1.1）
+        if self.auto_mode and self._sumire:
+            return self._auto_route(line), False
+        
+        # auto_mode OFF の場合
+        if not line:
+            return "", False
+        return "コマンドを入力してください（/help でヘルプ表示、/auto で司会モード切替）", False
+    
+    def _auto_route(self, user_input: str) -> str:
+        """スミレん司会による自動振り分け"""
+        # 直前の発言者を取得
+        last_msg = self.discussion.get_last_message()
+        last_speaker = last_msg.speaker if last_msg else ""
+        
+        # コンテキスト取得（直近のみ）
+        context = self.discussion.get_context(max_messages=10)
+        
+        # スミレんに振り分けてもらう
+        target_api, sumire_intro = self._sumire.route(user_input, context, last_speaker)
+        
+        # スミレんのセリフを先に表示
+        print(f"{ICONS['sumire']}スミレん「{sumire_intro}」")
+        print()
+        
+        # プロンプト構築（コンテキストが空の場合は討論開始として扱う）
+        if not context.strip():
+            # 最初の発言：討論テーマを伝えて開始
+            prompt = f"討論テーマ「{self.discussion.title}」について、あなたの見解を述べてください。"
+            if user_input.strip():
+                prompt += f"\n\nユーザーからの補足: {user_input}"
+        else:
+            prompt = user_input if user_input.strip() else ""
+        
+        # 指定されたAPIを呼び出し
+        api_response = self.call_api(target_api, prompt)
+        
+        return api_response
+    
+    def cmd_toggle_auto(self) -> str:
+        """司会モードの切り替え"""
+        if self._sumire is None:
+            try:
+                self._sumire = SumireHost()
+            except Exception as e:
+                return f"スミレん司会の初期化に失敗: {e}"
+        
+        self.auto_mode = not self.auto_mode
+        status = "ON（スミレん司会）" if self.auto_mode else "OFF（手動モード）"
+        return f"司会モード: {status}"
     
     def _help(self) -> str:
         """ヘルプ表示"""
-        return """【AgoraTheon v1.0 コマンド一覧】
+        auto_status = "ON" if self.auto_mode else "OFF"
+        return f"""【AgoraTheon v1.1 コマンド一覧】
 
-🎤 AI呼び出し:
+💠 司会モード: {auto_status}
+  （テキスト入力で自動振り分け、/auto で切替）
+
+🎤 AI直接呼び出し:
   /claude [指示]   - ✴️ Claude（理性・深い推論）
   /gemini [指示]   - ❇️ Gemini（実用・高速）
   /chatgpt [指示]  - ♻️ ChatGPT（汎用・バランス）
-  /grok [指示]     - ♨️ Grok（叡智・ちゃぶ台返し）
+  /grok [指示]     - ♨️ Grok（イーロン引用・ちゃぶ台返し）
 
 🛠️ 編集:
   /filter     - 直前の発言をフィルタリング
@@ -263,6 +325,7 @@ class AgoraTheon:
   /summarize  - これまでの議論を要約
 
 📊 その他:
+  /auto       - 司会モード切替
   /status     - 現在の状態を表示
   /health     - APIヘルスチェック
   /save       - 討論を保存
@@ -271,8 +334,10 @@ class AgoraTheon:
     
     def run(self):
         """REPLループを実行"""
-        print(f"🏛️ AgoraTheon v1.0 - AI討論会システム")
+        print(f"🏛️ AgoraTheon v1.1 - AI討論会システム")
         print(f"📋 討論: {self.discussion.title}")
+        auto_status = "ON（スミレん司会）" if self.auto_mode else "OFF（手動モード）"
+        print(f"💠 司会モード: {auto_status}")
         print(f"💡 /help でコマンド一覧を表示\n")
         
         while True:
@@ -291,17 +356,19 @@ class AgoraTheon:
 
 
 def main():
-    parser = argparse.ArgumentParser(description='AgoraTheon - AI討論会システム')
+    parser = argparse.ArgumentParser(description='AgoraTheon v1.1 - AI討論会システム')
     parser.add_argument('discussion_file', nargs='?', default='discussion.md',
                         help='討論ファイル（.md）')
     parser.add_argument('--data', '-d', action='append', default=[],
                         help='参考資料ファイル（複数指定可）')
     parser.add_argument('--health', action='store_true',
                         help='APIヘルスチェックのみ実行')
+    parser.add_argument('--no-auto', action='store_true',
+                        help='司会モードを無効化（v1.0互換）')
     
     args = parser.parse_args()
     
-    agora = AgoraTheon(args.discussion_file, args.data)
+    agora = AgoraTheon(args.discussion_file, args.data, auto_mode=not args.no_auto)
     
     if args.health:
         print(agora.cmd_health())

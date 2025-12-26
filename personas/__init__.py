@@ -1,4 +1,7 @@
 """
 AgoraTheon Personas
-v1.1でスミレん司会を追加予定
 """
+
+from .sumire import SumireHost
+
+__all__ = ["SumireHost"]

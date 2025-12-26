@@ -42,7 +42,7 @@ class GeminiAPI:
         self.client = genai.Client(api_key=api_key)
         self.model_name = "gemini-2.5-flash"
     
-    def generate(self, context: str, prompt: str = "", temperature: float = 0.7, max_tokens: int = 2048) -> str:
+    def generate(self, context: str, prompt: str = "", temperature: float = 0.7, max_tokens: int = 4096) -> str:
         """
         応答を生成
         
