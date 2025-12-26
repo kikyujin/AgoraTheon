@@ -30,18 +30,14 @@ class AgoraTheon:
         self._apis = {}
     
     def _load_or_create(self, filepath: str) -> Discussion:
-        """討論ファイルを読み込むか新規作成"""
+        """討論ファイルを読み込むか新規作成（JSONのみ対応）"""
         title = os.path.splitext(os.path.basename(filepath))[0]
+        json_file = filepath.replace('.md', '.json')
         
-        if os.path.exists(filepath):
-            with open(filepath, 'r', encoding='utf-8') as f:
-                content = f.read()
-            
-            # JSON形式かMarkdown形式か判定
-            if content.strip().startswith('{'):
-                return Discussion.from_json(content)
-            else:
-                return Discussion.from_markdown(content, title)
+        # JSONファイルがあれば読み込み
+        if os.path.exists(json_file):
+            with open(json_file, 'r', encoding='utf-8') as f:
+                return Discussion.from_json(f.read())
         
         return Discussion(title=title)
     
@@ -68,6 +64,12 @@ class AgoraTheon:
             return "\n\n".join(data_context) + "\n\n" + context
         return context
     
+    def _auto_save(self):
+        """JSONのみ自動保存"""
+        json_file = self.discussion_file.replace('.md', '.json')
+        with open(json_file, 'w', encoding='utf-8') as f:
+            f.write(self.discussion.to_json())
+    
     def call_api(self, api_name: str, prompt: str = "") -> str:
         """指定したAPIを呼び出して発言を追加"""
         api = self._get_api(api_name)
@@ -78,6 +80,9 @@ class AgoraTheon:
         # 発言を追加
         self.discussion.add_message(api.NAME, api.ICON, response)
         
+        # 自動保存
+        self._auto_save()
+        
         return f"{api.ICON}{api.NAME}: {response}"
     
     def cmd_filter(self) -> str:
@@ -86,7 +91,7 @@ class AgoraTheon:
         if not last:
             return "フィルタ対象の発言がありません"
         
-        # Gemini（高速）でフィルタリング
+        # Grok（キャラ無し）でフィルタリング
         filter_prompt = f"""以下の発言から不適切な表現（性的、暴力的、差別的など）を除去し、
 穏当な表現に書き換えてください。
 元の意味はできるだけ保持してください。
@@ -97,25 +102,30 @@ class AgoraTheon:
 【書き換え後の発言のみを出力】"""
         
         try:
-            from google import genai
-            from google.genai import types
+            from openai import OpenAI
             import os
-            client = genai.Client(api_key=os.environ.get('GEMINI_API_KEY'))
-            response = client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=filter_prompt,
-                config=types.GenerateContentConfig(max_output_tokens=2048)
+            client = OpenAI(
+                api_key=os.environ.get('GROK_API_KEY'),
+                base_url="https://api.x.ai/v1"
             )
-            filtered = response.text.strip()
+            response = client.chat.completions.create(
+                model="grok-3-fast",
+                messages=[{"role": "user", "content": filter_prompt}],
+                temperature=0.3,
+                max_tokens=2048
+            )
+            filtered = response.choices[0].message.content.strip()
         except Exception as e:
             return f"フィルタエラー: {e}"
         
         self.discussion.filter_last(filtered)
+        self._auto_save()
         return f"*{last.icon}{last.speaker}: {filtered}"
     
     def cmd_delete(self) -> str:
         """直前の発言を削除"""
         if self.discussion.delete_last():
+            self._auto_save()
             return "直前の発言を削除しました"
         return "削除対象の発言がありません"
     
@@ -153,6 +163,7 @@ class AgoraTheon:
         # 要約を司会として追加
         self.discussion.add_message("sumire", ICONS["sumire"], f"【これまでの議論要約】\n{summary}")
         
+        self._auto_save()
         return f"{ICONS['sumire']}sumire: 【これまでの議論要約】\n{summary}"
     
     def cmd_save(self) -> str:
