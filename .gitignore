@@ -1,0 +1,54 @@
+# Python 環境ファイル
+__pycache__/
+*.py[cod]
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.manifest
+*.spec
+.python-version
+
+# Jupyter自動生成チェックポイント
+.ipynb_checkpoints/
+
+# VSCode設定（任意）
+.vscode/
+
+# 仮想環境フォルダ（名前がvenvの場合）
+venv/
+ENV/
+.venv/
+
+# 出力キャッシュやlog類
+*.log
+*.out
+*.bak
+*.tmp
+*.swp
+
+# OSごみ
+.DS_Store
+Thumbs.db
+
+# モデルや大きな中間データ（任意で調整）
+*.h5
+*.pt
+*.ckpt
+*.pkl
+*.joblib
+
+# スタートバッチ
+*.bat
+run.sh
+
+# 環境変数ファイル
+.env
+.vscode
+
+venv
+foo.*
+*.service
+zip/
+chat/
